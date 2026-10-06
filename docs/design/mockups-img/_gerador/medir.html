@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:Inter;src:url(fonts/inter-latin-wght.woff2) format("woff2");font-weight:100 900}
+span{font-family:Inter;font-size:100px;white-space:pre;position:absolute;left:0;top:0}
+</style></head><body><pre id="out"></pre><script>
+document.fonts.load("400 100px Inter").then(()=>document.fonts.ready).then(()=>{
+const r={};
+for(const w of [400,500,600,700]){
+  r[w]={};
+  const chars=[];for(let c=32;c<=126;c++)chars.push(String.fromCharCode(c));
+  for(const ch of "ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúçº°·•–—…“”×÷−")chars.push(ch);
+  for(const ch of chars){
+    const s=document.createElement("span");s.style.fontWeight=w;s.textContent=ch;document.body.appendChild(s);
+    r[w][ch]=s.getBoundingClientRect().width/100;
+    s.remove();
+  }
+  const t=document.createElement("span");t.style.fontWeight=w;t.style.fontVariantNumeric="tabular-nums";t.textContent="0";document.body.appendChild(t);
+  r[w].tnum=t.getBoundingClientRect().width/100;t.remove();
+}
+document.getElementById("out").textContent="@@"+JSON.stringify(r)+"@@";
+});
+</script></body></html>

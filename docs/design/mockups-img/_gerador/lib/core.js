@@ -1,0 +1,275 @@
+const fs = require('fs');
+const path = require('path');
+
+const metricas = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fonts', 'metricas.json'), 'utf8'));
+
+const C = {
+  bg: '#F6F5F9',
+  surface: '#FFFFFF',
+  surfaceSunken: '#EDEAF3',
+  text: '#17132B',
+  muted: '#4C4663',
+  inverse: '#FFFFFF',
+  link: '#4C1D95',
+  border: '#D9D5E4',
+  borderStrong: '#7F7898',
+  focus: '#7C3AED',
+  primary: '#5B21B6',
+  primaryHover: '#4C1D95',
+  primaryActive: '#3B1676',
+  primaryContrast: '#FFFFFF',
+  income: '#0E7490',
+  incomeBg: '#E3F4F9',
+  expense: '#B91C1C',
+  expenseBg: '#FDECEC',
+  internal: '#4C4663',
+  internalBg: '#E9E6F0',
+  neutralValue: '#5D5775',
+  success: '#0E7490',
+  successBg: '#E3F4F9',
+  successBorder: '#7CC4D8',
+  successText: '#155E75',
+  info: '#0369A1',
+  infoBg: '#E6F3FA',
+  infoBorder: '#8CC3E3',
+  infoText: '#075985',
+  warning: '#B45309',
+  warningBg: '#FEF3DC',
+  warningBorder: '#E7B15A',
+  warningText: '#7C3A06',
+  danger: '#B91C1C',
+  dangerBg: '#FDECEC',
+  dangerBorder: '#EE9A9A',
+  dangerText: '#991B1B',
+  dangerHover: '#991B1B',
+  neutralBg: '#E9E6F0',
+  neutralBorder: '#CBC6DA',
+  neutralText: '#342E4A',
+  rowHover: '#F1EFF6',
+  rowSelected: '#EEE8FB',
+  tooltipBg: '#17132B',
+  track: '#DFDBE9',
+  skeletonBase: '#E6E3EE',
+  disabledBg: '#E5E2EC',
+  disabledText: '#6C6684',
+  chart: ['#2563C4', '#0B7F70', '#C2570C', '#C2255C', '#8A6D00', '#4F7D1A', '#5A6B85', '#0A7C99'],
+  grid: '#E3E0EC',
+  axis: '#4C4663',
+  cat: ['#2563C4', '#0B7F70', '#C2570C', '#C2255C', '#8A6D00', '#4F7D1A', '#5A6B85', '#0A7C99', '#8A5A2B', '#8F2434', '#1F3A7A', '#6B7280'],
+};
+
+const STATUS = {
+  ok: { bg: C.successBg, bd: C.successBorder, tx: C.successText, ic: C.success },
+  info: { bg: C.infoBg, bd: C.infoBorder, tx: C.infoText, ic: C.info },
+  warning: { bg: C.warningBg, bd: C.warningBorder, tx: C.warningText, ic: C.warning },
+  error: { bg: C.dangerBg, bd: C.dangerBorder, tx: C.dangerText, ic: C.danger },
+  neutral: { bg: C.neutralBg, bd: C.neutralBorder, tx: C.neutralText, ic: C.internal },
+};
+
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function tw(str, size = 14, weight = 400, tnum = false, ls = 0) {
+  const w = metricas[weight] || metricas[400];
+  let sum = 0;
+  const s = String(str);
+  for (const ch of s) {
+    if (tnum && ch >= '0' && ch <= '9') sum += w.tnum;
+    else sum += w[ch] !== undefined ? w[ch] : 0.6;
+  }
+  return sum * size + ls * s.length;
+}
+
+function fit(str, max, size, weight = 400, tnum = false) {
+  const s = String(str);
+  if (tw(s, size, weight, tnum) <= max) return s;
+  let out = s;
+  while (out.length > 1 && tw(out + '…', size, weight, tnum) > max) out = out.slice(0, -1);
+  return out.trimEnd() + '…';
+}
+
+function wrap(str, max, size, weight = 400) {
+  const words = String(str).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const t = cur ? cur + ' ' + w : w;
+    if (tw(t, size, weight) <= max || !cur) cur = t;
+    else {
+      lines.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function T(x, cy, str, o = {}) {
+  const { size = 14, weight = 400, fill = C.text, anchor = 'start', tnum = false, ls = 0, max, upper = false } = o;
+  let s = upper ? String(str).toUpperCase() : String(str);
+  if (max) s = fit(s, max, size, weight, tnum);
+  const y = (cy + size * 0.36).toFixed(2);
+  const attrs = [`x="${(+x).toFixed(2)}"`, `y="${y}"`, `font-size="${size}"`, `font-weight="${weight}"`, `fill="${fill}"`];
+  if (anchor !== 'start') attrs.push(`text-anchor="${anchor}"`);
+  if (tnum) attrs.push('class="n"');
+  if (ls) attrs.push(`letter-spacing="${ls}"`);
+  if (o.mono) attrs.push('font-family="ui-monospace, Consolas, monospace"');
+  return `<text ${attrs.join(' ')}>${esc(s)}</text>`;
+}
+
+function R(x, y, w, h, o = {}) {
+  const { fill = 'none', stroke, r = 0, sw = 1, dash, filter, op } = o;
+  const a = [`x="${(+x).toFixed(2)}"`, `y="${(+y).toFixed(2)}"`, `width="${(+w).toFixed(2)}"`, `height="${(+h).toFixed(2)}"`, `fill="${fill}"`];
+  if (r) a.push(`rx="${r}"`);
+  if (stroke) a.push(`stroke="${stroke}"`, `stroke-width="${sw}"`);
+  if (dash) a.push(`stroke-dasharray="${dash}"`);
+  if (filter) a.push(`filter="url(#${filter})"`);
+  if (op !== undefined) a.push(`opacity="${op}"`);
+  return `<rect ${a.join(' ')}/>`;
+}
+
+function RB(x, y, w, h, o = {}) {
+  return R(x + 0.5, y + 0.5, w - 1, h - 1, { ...o, r: o.r ? o.r - 0.5 : 0 });
+}
+
+function L(x1, y1, x2, y2, stroke = C.border, sw = 1, dash) {
+  return `<line x1="${(+x1).toFixed(2)}" y1="${(+y1).toFixed(2)}" x2="${(+x2).toFixed(2)}" y2="${(+y2).toFixed(2)}" stroke="${stroke}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+}
+
+function Ci(cx, cy, r, o = {}) {
+  const { fill = 'none', stroke, sw = 1 } = o;
+  return `<circle cx="${(+cx).toFixed(2)}" cy="${(+cy).toFixed(2)}" r="${r}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${sw}"` : ''}/>`;
+}
+
+function G(x, y, inner, extra = '') {
+  return `<g transform="translate(${(+x).toFixed(2)} ${(+y).toFixed(2)})"${extra}>${inner}</g>`;
+}
+
+function clip(id, x, y, w, h, r = 0) {
+  return `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/></clipPath>`;
+}
+
+const ICONS = {
+  home: ['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+  swap: ['M8 3 4 7l4 4', 'M4 7h16', 'm16 21 4-4-4-4', 'M20 17H4'],
+  landmark: ['M10 18v-7', 'M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z', 'M14 18v-7', 'M18 18v-7', 'M3 22h18', 'M6 18v-7'],
+  card: ['M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z', 'M2 10h20'],
+  trendUp: ['M16 7h6v6', 'm22 7-8.5 8.5-5-5L2 17'],
+  trendDown: ['M16 17h6v-6', 'm22 17-8.5-8.5-5 5L2 7'],
+  target: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z', 'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  repeat: ['m17 2 4 4-4 4', 'M3 11v-1a4 4 0 0 1 4-4h14', 'm7 22-4-4 4-4', 'M21 13v1a4 4 0 0 1-4 4H3'],
+  tag: ['M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z', 'M7.5 7.5h.01'],
+  link: ['M9 17H7A5 5 0 0 1 7 7h2', 'M15 7h2a5 5 0 1 1 0 10h-2', 'M8 12h8'],
+  upload: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm17 8-5-5-5 5', 'M12 3v12'],
+  download: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'm7 10 5 5 5-5', 'M12 15V3'],
+  bell: ['M10.268 21a2 2 0 0 0 3.464 0', 'M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'],
+  settings: ['M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'm21 21-4.3-4.3'],
+  eye: ['M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+  eyeOff: ['M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49', 'M14.084 14.158a3 3 0 0 1-4.242-4.242', 'M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143', 'm2 2 20 20'],
+  refresh: ['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5'],
+  calendar: ['M8 2v4', 'M16 2v4', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', 'M3 10h18'],
+  calendarClock: ['M16 14v2.2l1.6 1', 'M16 2v4', 'M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5', 'M3 10h5', 'M8 2v4', 'M16 22a6 6 0 1 0 0-12 6 6 0 0 0 0 12z'],
+  chevR: ['m9 18 6-6-6-6'],
+  chevD: ['m6 9 6 6 6-6'],
+  chevL: ['m15 18-6-6 6-6'],
+  chevU: ['m18 15-6-6-6 6'],
+  plus: ['M5 12h14', 'M12 5v14'],
+  x: ['M18 6 6 18', 'm6 6 12 12'],
+  check: ['M20 6 9 17l-5-5'],
+  circleCheck: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'm9 12 2 2 4-4'],
+  circleX: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'm15 9-6 6', 'm9 9 6 6'],
+  triAlert: ['m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3', 'M12 9v4', 'M12 17h.01'],
+  octAlert: ['M12 16h.01', 'M12 8v4', 'M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z'],
+  info: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 16v-4', 'M12 8h.01'],
+  clock: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 6v6l4 2'],
+  shield: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'],
+  shieldCheck: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z', 'm9 12 2 2 4-4'],
+  lock: ['M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z', 'M7 11V7a5 5 0 0 1 10 0v4'],
+  mail: ['M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z', 'm22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'],
+  dotsV: ['M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M12 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M12 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2z'],
+  dotsH: ['M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z'],
+  arrowUpR: ['M7 7h10v10', 'M7 17 17 7'],
+  arrowDownL: ['M17 7 7 17', 'M17 17H7V7'],
+  arrowUp: ['m5 12 7-7 7 7', 'M12 19V5'],
+  arrowDown: ['M12 5v14', 'm19 12-7 7-7-7'],
+  arrowRight: ['M5 12h14', 'm12 5 7 7-7 7'],
+  fileText: ['M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z', 'M14 2v5a1 1 0 0 0 1 1h5', 'M10 9H8', 'M16 13H8', 'M16 17H8'],
+  printer: ['M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2', 'M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6', 'M7 14h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1z'],
+  trash: ['M10 11v6', 'M14 11v6', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M3 6h18', 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'],
+  pencil: ['M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z', 'm15 5 4 4'],
+  sparkles: ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4', 'M4 17v2', 'M5 18H3'],
+  inbox: ['M22 12h-6l-2 3h-4l-2-3H2', 'M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'],
+  wallet: ['M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1', 'M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4'],
+  sun: ['M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'],
+  moon: ['M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'],
+  monitor: ['M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M8 21h8', 'M12 17v4'],
+  grip: ['M9 6a1 1 0 1 0 0-.01', 'M9 12a1 1 0 1 0 0-.01', 'M9 18a1 1 0 1 0 0-.01', 'M15 6a1 1 0 1 0 0-.01', 'M15 12a1 1 0 1 0 0-.01', 'M15 18a1 1 0 1 0 0-.01'],
+  user: ['M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2', 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+  logout: ['m16 17 5-5-5-5', 'M21 12H9', 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'],
+  utensils: ['M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2', 'M7 2v20', 'M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7'],
+  cart: ['M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6'],
+  car: ['M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2', 'M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z', 'M9 17h6', 'M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z'],
+  heart: ['M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z'],
+  grad: ['M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z', 'M22 10v6', 'M6 12.5V16a6 3 0 0 0 12 0v-3.5'],
+  plane: ['M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z'],
+  receipt: ['M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z', 'M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8', 'M12 17.5v-11'],
+  briefcase: ['M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16', 'M4 6h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z'],
+  phone: ['M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z', 'M12 18h.01'],
+  sliders: ['M3 6h10', 'M17 6h4', 'M3 12h4', 'M11 12h10', 'M3 18h12', 'M19 18h2', 'M15 4v4', 'M9 10v4', 'M17 16v4'],
+  chartCol: ['M3 3v16a2 2 0 0 0 2 2h16', 'M18 17V9', 'M13 17V5', 'M8 17v-3'],
+  copy: ['M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2'],
+  menu: ['M4 12h16', 'M4 6h16', 'M4 18h16'],
+  panelLeft: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 3v18', 'm16 15-3-3 3-3'],
+  key: ['m21 2-9.6 9.6', 'M7.5 21a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z', 'm15.5 7.5 3 3L22 7l-3-3'],
+  hourglass: ['M5 22h14', 'M5 2h14', 'M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22', 'M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'],
+  split: ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3', 'm15 9 6-6'],
+  penLine: ['M12 20h9', 'M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z'],
+  circle: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z'],
+  circleDot: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z'],
+  bellOff: ['M10.268 21a2 2 0 0 0 3.464 0', 'M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742', 'm2 2 20 20', 'M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05'],
+  zap: ['M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z'],
+  piggy: ['M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2z', 'M2 9.5a2.5 2.5 0 0 0 5 0', 'M16 11h.01'],
+  folder: ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'],
+  gamepad: ['M6 12h4', 'M8 10v4', 'M15 13h.01', 'M18 11h.01', 'M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z'],
+  book: ['M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20'],
+  play: ['M6 3l14 9-14 9z'],
+  bag: ['M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z', 'M3 6h18', 'M16 10a4 4 0 0 1-8 0'],
+  dumbbell: ['M14.4 14.4 9.6 9.6', 'M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z', 'm21.5 21.5-1.4-1.4', 'M3.9 3.9 2.5 2.5', 'M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z'],
+  fuel: ['M3 22h12', 'M4 9h10', 'M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18', 'M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5'],
+  cloudOff: ['m2 2 20 20', 'M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193', 'M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07'],
+};
+
+function I(name, x, y, size = 20, color = C.text, sw = 1.75, o = {}) {
+  const paths = ICONS[name];
+  if (!paths) throw new Error('icone ausente: ' + name);
+  const fillDots = name === 'grip' || name === 'dotsV' || name === 'dotsH';
+  const body = paths.map((d) => `<path d="${d}"/>`).join('');
+  const sc = size / 24;
+  return `<g transform="translate(${(+x).toFixed(2)} ${(+y).toFixed(2)}) scale(${sc.toFixed(4)})" fill="${fillDots ? color : 'none'}" stroke="${color}" stroke-width="${(sw / (sc > 0 ? 1 : 1)).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${body}</g>`;
+}
+
+function Ic(name, cx, cy, size = 20, color = C.text, sw = 1.75) {
+  return I(name, cx - size / 2, cy - size / 2, size, color, sw);
+}
+
+const nfNum = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nfInt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+
+function brl(v, o = {}) {
+  const { sign = 'auto', dec = true } = o;
+  const abs = Math.abs(v);
+  const body = dec ? nfNum.format(abs) : nfInt.format(Math.round(abs));
+  let s = '';
+  if (sign === 'always') s = v < 0 ? '−' : '+';
+  else if (sign === 'auto') s = v < 0 ? '−' : '';
+  else if (sign === 'plus') s = v < 0 ? '−' : v > 0 ? '+' : '';
+  return `${s}R$ ${body}`;
+}
+
+const pct = (v, d = 1, sign = false) => `${sign && v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })}%`;
+
+function sumArr(a) {
+  return a.reduce((x, y) => x + y, 0);
+}
+
+module.exports = { C, STATUS, esc, tw, fit, wrap, T, R, RB, L, Ci, G, clip, I, Ic, ICONS, brl, pct, nfNum, nfInt, sumArr };
